@@ -12,7 +12,13 @@ type HelloResponse = {
 };
 
 const callHelloApiRoute = async (code: any): Promise<HelloResponse> => {
-  const response = await axios.post("https://localhost:3000/api/hello2", {
+  var url = `${
+    process.env.NODE_ENV === "development"
+      ? "https://localhost:3000"
+      : "https://likeartists.vercel.app"
+  }`;
+
+  const response = await axios.post(`${url}/api/hello2`, {
     code: code,
   });
 
@@ -113,7 +119,13 @@ export default function Home() {
   }
 
   const callFollowApiRoute = async () => {
-    const response = await axios.put("https://localhost:3000/api/follow", {
+    var url = `${
+      process.env.NODE_ENV === "development"
+        ? "https://localhost:3000"
+        : "https://likeartists.vercel.app"
+    }`;
+
+    const response = await axios.put(`${url}/api/follow`, {
       toFollow: toFollow,
       toUnfollow: toUnfollow,
       accessToken,
