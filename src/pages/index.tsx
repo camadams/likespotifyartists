@@ -11,25 +11,10 @@ type HelloResponse = {
   accessToken: string;
 };
 
-const callHelloApiRoute = async (code: any): Promise<HelloResponse> => {
-  var url = `${
-    process.env.NODE_ENV === "development"
-      ? "https://localhost:3000"
-      : "https://likeartists.vercel.app"
-  }`;
-
-  const response = await axios.post(`${url}/api/hello2`, {
-    code: code,
-  });
-
-  return response.data;
-};
-
 export default function Home() {
   const [likedTracks, setLikedSongs] = useState<TrackNameAndArtists[]>([]);
   const [accessToken, setAccessToken] = useState<string>();
   const [loadingLikedTracks, setLoadingLikedTracks] = useState<boolean>(false);
-  const [isGroupByArtist, setIsGroupByArtist] = useState<boolean>(true);
   const [following, setFollowingArtitstIds] = useState<string[]>([]);
   const [toFollow, setToFollow] = useState<string[]>([]);
   const [toUnfollow, setToUnfollow] = useState<string[]>([]);
@@ -38,33 +23,50 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const { code } = router.query;
+    const { code, accessToken } = router.query;
     if (code && likedTracks.length == 0) {
-      setLoadingLikedTracks(() => true);
-      toast.success(code as string);
+      const doStuff = async () => {
+        setLoadingLikedTracks(() => true);
 
-      callHelloApiRoute(code)
-        .then((items) => {
-          setLikedSongs(() => items.trackNameAndArtists);
-          setFollowingArtitstIds(() => {
-            const uniqueArtistIds = Array.from(
-              new Set(
-                items.trackNameAndArtists.flatMap((x) =>
-                  [...x.artists]
-                    .filter((artist) => artist.isFollowing)
-                    .map((artist) => artist.id)
+        var url = `${
+          process.env.NODE_ENV === "development"
+            ? "https://localhost:3000"
+            : "https://likeartists.vercel.app"
+        }`;
+        console.log({ code });
+        console.log("likedTracks.length ", likedTracks.length);
+        await axios
+          .post(`${url}/api/hello2`, {
+            code: code,
+            accessToken: accessToken,
+          })
+          .then((response) => {
+            var items = response.data as HelloResponse;
+            setLikedSongs(() => items.trackNameAndArtists);
+            setFollowingArtitstIds(() => {
+              const uniqueArtistIds = Array.from(
+                new Set(
+                  items.trackNameAndArtists.flatMap((x) =>
+                    [...x.artists]
+                      .filter((artist) => artist.isFollowing)
+                      .map((artist) => artist.id)
+                  )
                 )
-              )
-            );
-            return uniqueArtistIds;
-          });
-          setAccessToken(() => items.accessToken);
-          setLoadingLikedTracks(() => false);
-          console.log("herererere");
-        })
-        .catch((error) => console.error("&&& Error:", error));
+              );
+              return uniqueArtistIds;
+            });
+            setAccessToken(() => items.accessToken);
+            router.push({
+              pathname: router.pathname,
+              query: { code, accessToken: items.accessToken },
+            });
+            setLoadingLikedTracks(() => false);
+          })
+          .catch((error) => alert("&&& Error: " + error.message));
+      };
+      doStuff();
     }
-  }, [likedTracks.length, router.query, router.query.code]);
+  }, [likedTracks.length, router, router.query, router.query.code]);
 
   const handelLoggedInClicked = () => {
     setLoadingLikedTracks(() => true);
@@ -73,23 +75,62 @@ export default function Home() {
   const handleFollow = async (artistId: string) => {
     if (following.includes(artistId)) {
       if (toUnfollow.includes(artistId)) {
+        // means we revert unfollow
         setToUnfollow((prev) => prev.filter((x) => x !== artistId));
       } else {
+        // means we must unfollow
         setToUnfollow((prev) => [...prev, artistId]);
       }
     } else {
       if (toFollow.includes(artistId)) {
+        // means we revert follow
         setToFollow((prev) => prev.filter((x) => x !== artistId));
       } else {
+        // means we must follow
         setToFollow((prev) => [...prev, artistId]);
       }
     }
     return;
   };
 
-  const handleSave = () => {
-    callFollowApiRoute();
-    setToFollow(() => []);
+  const handleSave = async () => {
+    var url = `${
+      process.env.NODE_ENV === "development"
+        ? "https://localhost:3000"
+        : "https://likeartists.vercel.app"
+    }`;
+
+    await axios
+      .put(`${url}/api/follow`, {
+        toFollow: toFollow,
+        toUnfollow: toUnfollow,
+        accessToken,
+      })
+      .then(() => {
+        setFollowingArtitstIds((prev) => [...prev, ...toFollow]);
+        toFollow.forEach((x) => {
+          likedTracks.forEach((y) => {
+            const artist = y.artists.find((artist) => artist.id === x);
+            if (artist) {
+              artist.isFollowing = true;
+            }
+          });
+        });
+        setToFollow(() => []);
+        setFollowingArtitstIds((prev) =>
+          prev.filter((x) => !toUnfollow.includes(x))
+        );
+        toUnfollow.forEach((x) => {
+          likedTracks.forEach((y) => {
+            const artist = y.artists.find((artist) => artist.id === x);
+            if (artist) {
+              artist.isFollowing = false;
+            }
+          });
+        });
+        setToUnfollow(() => []);
+      })
+      .catch((err) => alert(err.message));
   };
 
   const doGroupingByArtist = (tracks: TrackNameAndArtists[]) => {
@@ -118,19 +159,22 @@ export default function Home() {
     return null;
   }
 
-  const callFollowApiRoute = async () => {
-    var url = `${
-      process.env.NODE_ENV === "development"
-        ? "https://localhost:3000"
-        : "https://likeartists.vercel.app"
-    }`;
-
-    const response = await axios.put(`${url}/api/follow`, {
-      toFollow: toFollow,
-      toUnfollow: toUnfollow,
-      accessToken,
+  const handleFollowAll = () => {
+    setToFollow(() => {
+      const uniqueArtistIds = Array.from(
+        new Set(
+          likedTracks.flatMap((x) =>
+            [...x.artists]
+              .filter(
+                (artist) =>
+                  !artist.isFollowing || !following.includes(artist.id)
+              )
+              .map((artist) => artist.id)
+          )
+        )
+      );
+      return uniqueArtistIds;
     });
-    console.log(response.data);
   };
 
   const FollowingNotFollowingButton = ({
@@ -162,12 +206,12 @@ export default function Home() {
     sub: Artist[] | string[];
   }) => {
     return (
-      <div className="mb-3">
+      <div className="mb-3 ">
         <div className="flex justify-between">
           <a
             target={typeof main !== "string" ? "_blank" : ""}
             href={typeof main !== "string" ? main.external_urls.spotify : "#"}
-            className=" text-yellow-500"
+            className=" text-yellow-500 "
           >
             {typeof main !== "string" ? main.name : main}
           </a>
@@ -202,39 +246,34 @@ export default function Home() {
     );
   };
 
-  const handleFollowAll = () => {
-    setToFollow(() => {
-      const uniqueArtistIds = Array.from(
-        new Set(
-          likedTracks.flatMap((x) =>
-            [...x.artists]
-              .filter((artist) => !artist.isFollowing)
-              .map((artist) => artist.id)
-          )
-        )
-      );
-      return uniqueArtistIds;
-    });
-  };
+  if (!router.query.code && likedTracks.length == 0) {
+    return (
+      <div className="flex h-screen items-center justify-center animate-in fade-in zoom-in">
+        <Link
+          className="rounded-full bg-green-500 px-4 py-2 text-black"
+          onClick={handelLoggedInClicked}
+          href={"/api/login"}
+        >
+          Login with Spotify
+        </Link>
+      </div>
+    );
+  }
 
-  // if (likedTracks.length == 0) {
-  //   return (
-  //     <div className="fiex h-screen items-center justify-center">
-  //       <Link
-  //         className="rounded-full bg-green-500 px-4 py-2 fiex text-black  items-center justify-center"
-  //         onClick={handelLoggedInClicked}
-  //         href={"/api/login"}
-  //       >
-  //         Login with Spotify
-  //       </Link>
-  //     </div>
-  //   );
-  // }
+  if (loadingLikedTracks) {
+    return (
+      <div className="h-screen flex justify-center items-center animate-in fade-in zoom-in">
+        <LoadingSpinner />
+        <h1>Loading your Liked Tracks</h1>
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <div className="container p-4 md:px-48 relative pb-10">
       {(toFollow.length > 0 || toUnfollow.length > 0) && (
-        <div className="fixed bottom-0 left-0 right-0 bg-gray-800 h-10 text-center items-center">
+        <div className="fixed bottom-0 left-0 right-0 bg-gray-800 h-10 text-center text-sm items-center animate-in fade-in zoom-in ">
           {toFollow.length > 0 && `Follow ${toFollow.length} artist(s). `}
           {toUnfollow.length > 0 && `Un-follow ${toUnfollow.length} artist(s)`}
           <button
@@ -252,15 +291,6 @@ export default function Home() {
           >
             Cancel
           </button>
-        </div>
-      )}
-      <Link onClick={handelLoggedInClicked} href={"/api/login"}>
-        login
-      </Link>
-
-      {!!loadingLikedTracks && (
-        <div className="w-10">
-          <LoadingSpinner />
         </div>
       )}
 
@@ -317,7 +347,7 @@ export default function Home() {
           <div className="p-4" />
           <div className="flex justify-end">
             <button
-              className="rounded-full px-2 bg-orange-500 text-black hover:bg-orange-400"
+              className="rounded-full px-2 bg-gradient-to-r from-blue-500 to-orange-400  text-black hover:bg-orange-400"
               onClick={handleFollowAll}
             >
               Follow All
