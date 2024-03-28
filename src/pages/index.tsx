@@ -4,7 +4,7 @@ import axios from "axios";
 import Link from "next/link";
 import { Artist, TrackNameAndArtists } from "~/utils/types";
 import { LoadingSpinner } from "~/LoadingSpinner";
-import { toast } from "react-hot-toast";
+import { track } from "@vercel/analytics";
 
 type HelloResponse = {
   trackNameAndArtists: TrackNameAndArtists[];
@@ -138,6 +138,7 @@ export default function Home() {
           });
         });
         setToUnfollow(() => []);
+        track("Confirm follow");
       })
       .catch((err) => alert(err.message));
   };
