@@ -16,6 +16,7 @@ export default function Home() {
   const [accessToken, setAccessToken] = useState<string>();
   const [loadingLikedTracks, setLoadingLikedTracks] = useState<boolean>(false);
   const [following, setFollowingArtitstIds] = useState<string[]>([]);
+  const [allArtistsCount, setAllArtistsCount] = useState<number>(1);
   const [toFollow, setToFollow] = useState<string[]>([]);
   const [toUnfollow, setToUnfollow] = useState<string[]>([]);
   const [groupById, setGroupById] = useState(0);
@@ -33,8 +34,6 @@ export default function Home() {
             ? "https://localhost:3000"
             : "https://likeartists.vercel.app"
         }`;
-        console.log({ code });
-        console.log("likedTracks.length ", likedTracks.length);
         await axios
           .post(`${url}/api/hello2`, {
             code: code,
@@ -42,9 +41,10 @@ export default function Home() {
           })
           .then((response) => {
             var items = response.data as HelloResponse;
+            var ta = items.trackNameAndArtists.flatMap((aa) => aa.trackName);
             setLikedSongs(() => items.trackNameAndArtists);
-            setFollowingArtitstIds(() => {
-              const uniqueArtistIds = Array.from(
+            setFollowingArtitstIds(() =>
+              Array.from(
                 new Set(
                   items.trackNameAndArtists.flatMap((x) =>
                     [...x.artists]
@@ -52,8 +52,17 @@ export default function Home() {
                       .map((artist) => artist.id)
                   )
                 )
+              )
+            );
+            setAllArtistsCount(() => {
+              const uniqueArtists = Array.from(
+                new Set(
+                  items.trackNameAndArtists
+                    .flatMap((item) => [...item.artists])
+                    .map((artist) => artist.id)
+                )
               );
-              return uniqueArtistIds;
+              return uniqueArtists.length;
             });
             setAccessToken(() => items.accessToken);
             router.push({
@@ -160,8 +169,8 @@ export default function Home() {
   }
 
   const handleFollowAll = () => {
-    setToFollow(() => {
-      const uniqueArtistIds = Array.from(
+    setToFollow(() =>
+      Array.from(
         new Set(
           likedTracks.flatMap((x) =>
             [...x.artists]
@@ -172,9 +181,8 @@ export default function Home() {
               .map((artist) => artist.id)
           )
         )
-      );
-      return uniqueArtistIds;
-    });
+      )
+    );
   };
 
   const FollowingNotFollowingButton = ({
@@ -262,10 +270,9 @@ export default function Home() {
 
   if (loadingLikedTracks) {
     return (
-      <div className="h-screen flex justify-center items-center animate-in fade-in zoom-in">
+      <div className="h-screen flex flex-row justify-center items-center animate-in fade-in zoom-in">
         <LoadingSpinner />
-        <h1>Loading your Liked Tracks</h1>
-        <LoadingSpinner />
+        <div className="text-sm">{`Loading your Liked Songs. 500 songs takes ~3s.`}</div>
       </div>
     );
   }
@@ -343,8 +350,15 @@ export default function Home() {
           >
             Group by Track
           </button>
+          <div className="p-2" />
 
-          <div className="p-4" />
+          <p className="text-xs">{`You are following ${
+            following.length
+          }/${allArtistsCount} (${Math.round(
+            ((following.length / allArtistsCount) * 100 * 100) / 100
+          )}%) of the Arists in your Liked Songs Playlist`}</p>
+
+          <div className="p-2 " />
           <div className="flex justify-end">
             <button
               className="rounded-full px-2 bg-gradient-to-r from-blue-500 to-orange-400  text-black hover:bg-orange-400"

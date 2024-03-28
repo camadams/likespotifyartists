@@ -13,8 +13,8 @@ import stringify from "query-string";
 
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    var state = "sdfhfKJHAFKHSDF";
-    var scope = 'streaming user-read-email user-follow-modify user-read-private user-follow-read user-library-read user-library-modify user-read-playback-state user-modify-playback-state';
+    var state = generateRandomString(16);
+    var scope = 'user-follow-modify user-follow-read user-library-read';
 
     res.redirect('https://accounts.spotify.com/authorize?' +
         stringify.stringify({
@@ -25,3 +25,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
         + '&redirect_uri=' + SPOTIFY_REDIRECT_URI);
 }
+
+var generateRandomString = (length: number) => {
+    var text = '';
+    var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+    for (var i = 0; i < length; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
+};

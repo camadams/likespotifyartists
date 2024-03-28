@@ -29,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .then((accessTokenResponse) => { accessToken = accessTokenResponse.data.access_token })
       .catch(error => {
         console.log("$$$$$", error.message)
-        res.status(error.response.status).json({ msg: "Oopsie : " });
+        res.status(400).json({ msg: "Oopsie : " });
         return;
       });
   }
@@ -43,22 +43,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const promises: Promise<void>[] = [];
   const headers = { 'Authorization': 'Bearer ' + accessToken };
 
-  var xData: Paging | undefined;
+  var firstResponseData: Paging | undefined;
 
-  const x = await axios.get(next, { headers })
-    .then(response => xData = response.data)
+  await axios.get(next, { headers })
+    .then(firstResponse => firstResponseData = firstResponse.data)
     .catch(error => {
-      console.log("line 54: ", error.message, error.response.status)
-      res.status(error.response.status).json({ msg: "Oopsie : " });
+      console.log("line 54: ", error.message, 400)
+      res.status(400).json({ msg: "Oopsie : " });
       return;
     })
 
-  if (!xData) {
+  if (!firstResponseData) {
     res.status(400).json({ msg: "Oopsie " });
     return
   }
 
-  var songs = xData.items;
+  var songs = firstResponseData.items;
 
   for (const song of songs) {
     for (const artist of song.track.artists) {
@@ -67,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   returnSongs.push(...songs);
 
-  for (let i = 50; i < xData.total + 50; i += 50) {
+  for (let i = 50; i < firstResponseData.total + 50; i += 50) {
     promises.push(
       axios.get(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${i}`, { headers })
         .then((response) => {
@@ -82,9 +82,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           returnSongs.push(...songs);
           next = followingTracksResponseData.next;
         })
-        .catch(error => {
+        .catch((error) => {
           console.log(error.message)
-          res.status(error.response.status).json({ msg: "Oopsie : " });
+          res.status(400).json({ msg: "Oopsie : " });
           return;
         })
     );
@@ -108,7 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }).catch(error => {
       console.log(error.message)
-      res.status(error.response.status).json({ msg: "Oopsie : " });
+      res.status(400).json({ msg: "Oopsie : " });
       return;
     }))
   }
