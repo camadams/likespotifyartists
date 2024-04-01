@@ -273,7 +273,7 @@ export default function Home() {
     return (
       <div className="h-screen flex flex-row justify-center items-center animate-in fade-in zoom-in">
         <LoadingSpinner />
-        <div className="text-sm">{`Loading your Liked Songs. 500 songs takes ~3s.`}</div>
+        <div className="text-sm">{`Loading your Liked Songs. It takes ~3s to load 500 songs`}</div>
       </div>
     );
   }
