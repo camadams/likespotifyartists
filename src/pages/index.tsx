@@ -4,7 +4,6 @@ import axios from "axios";
 import Link from "next/link";
 import { Artist, TrackNameAndArtists } from "~/utils/types";
 import { LoadingSpinner } from "~/LoadingSpinner";
-import { track } from "@vercel/analytics";
 
 type HelloResponse = {
   trackNameAndArtists: TrackNameAndArtists[];
@@ -138,7 +137,6 @@ export default function Home() {
           });
         });
         setToUnfollow(() => []);
-        track("Confirm follow");
       })
       .catch((err) => alert(err.message));
   };
@@ -259,7 +257,7 @@ export default function Home() {
     return (
       <div className="flex h-screen items-center justify-center animate-in fade-in zoom-in">
         <Link
-          className="rounded-full bg-green-500 px-4 py-2 text-black"
+          className="rounded-full bg-sky-500 px-4 py-2 text-black"
           onClick={handelLoggedInClicked}
           href={"/api/login"}
         >

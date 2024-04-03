@@ -1,3 +1,4 @@
+import { stringify } from 'querystring';
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const {
@@ -28,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
       .then((accessTokenResponse) => { accessToken = accessTokenResponse.data.access_token })
       .catch(error => {
-        console.log("$$$$$", error.message)
+        console.log("(((((((", error.message)
         res.status(400).json({ msg: "Oopsie : " });
         return;
       });
@@ -37,10 +38,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   var returnSongs: Item[] = [];
   var followingTracksResponseData;
-  var next: string | null = "https://api.spotify.com/v1/me/tracks?limit=50";
+  const LIMIT = 50;
+
+  var next: string | null = `https://api.spotify.com/v1/me/tracks?limit=${LIMIT}`;
   var isFollowingMap = new Map<string, boolean | undefined>();
 
-  const promises: Promise<void>[] = [];
   const headers = { 'Authorization': 'Bearer ' + accessToken };
 
   var firstResponseData: Paging | undefined;
@@ -48,8 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await axios.get(next, { headers })
     .then(firstResponse => firstResponseData = firstResponse.data)
     .catch(error => {
-      console.log("line 54: ", error.message, 400)
-      res.status(400).json({ msg: "Oopsie : " });
+      console.log("line 54: ", error.response)
+      res.status(error.response).json({ msg: "Oopsie : " + error.response.status });
       return;
     })
 
@@ -67,9 +69,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   returnSongs.push(...songs);
 
-  for (let i = 50; i < firstResponseData.total + 50; i += 50) {
-    promises.push(
-      axios.get(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${i}`, { headers })
+  const trackPromises: Promise<void>[] = [];
+  for (let i = LIMIT; i < firstResponseData.total + LIMIT; i += LIMIT) {
+    trackPromises.push(
+      axios.get(`https://api.spotify.com/v1/me/tracks?limit=${LIMIT}&offset=${i}`, { headers })
         .then((response) => {
           followingTracksResponseData = response.data as Paging;
           const songs = followingTracksResponseData.items;
@@ -89,13 +92,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
     );
   }
-  await Promise.all(promises);
+  await Promise.all(trackPromises);
+  console.log(JSON.stringify(returnSongs[0].track.artists[0]))
 
   const followingPromises: Promise<void>[] = [];
 
   const artistIds = Array.from(isFollowingMap.keys());
-  for (let i = 0; i < artistIds.length; i += 50) {
-    const ids = artistIds.slice(i, i + 50);
+  for (let i = 0; i < artistIds.length; i += LIMIT) {
+    const ids = artistIds.slice(i, i + LIMIT);
     followingPromises.push(axios.get(`https://api.spotify.com/v1/me/following/contains`, {
       headers,
       params: {
