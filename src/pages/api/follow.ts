@@ -8,9 +8,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const toFollow = req.body.toFollow as string[];
   const toUnfollow = req.body.toUnfollow as string[];
 
-  console.log({ toFollow })
-  console.log({ toUnfollow })
-
   const artistIdsJoin = toFollow.join('%');
   var i = 0;
 
