@@ -50,8 +50,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await axios.get(next, { headers })
     .then(firstResponse => firstResponseData = firstResponse.data)
     .catch(error => {
-      console.log("line 54: ", error.response)
-      res.status(error.response).json({ msg: "Oopsie : " + error.response.status });
+      console.log("lineeeee 54: ", error.response)
+      const data = error.response.data as string;
+      const notReg = data.includes('not registered');
+      res.status(error.response.status).send({ msg: error.response.data, notReg });
       return;
     })
 

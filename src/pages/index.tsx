@@ -71,7 +71,13 @@ export default function Home() {
             });
             setLoadingLikedTracks(() => false);
           })
-          .catch((error) => alert("&&& Error: " + error.message));
+          .catch((error) => {
+            console.log(error);
+            var alertMsg = error.response.data.notReg
+              ? "Your email address is not added to the list of addresses that can access this app, please contact Cameron."
+              : error.response.data.msg;
+            alert("Error: " + alertMsg);
+          });
       };
       doStuff();
     }
@@ -285,8 +291,8 @@ export default function Home() {
             {!!artist.images && artist.images[0] && (
               <Image
                 src={artist.images[0].url}
-                width={40}
                 height={40}
+                width={40}
                 // width={main.images[0].width}
                 // height={main.images[0].height}
                 alt="artist image"
