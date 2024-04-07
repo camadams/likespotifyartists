@@ -227,7 +227,7 @@ export default function Home() {
           <a className="font-semibold content-center  ">{songName}</a>
           <p className="text-xs content-center shrink-0 text-gray-300">
             {isBefore(added_at, subMonths(new Date(), 1))
-              ? format(added_at, "d MMM yyyy")
+              ? format(added_at, "MMM d, yyyy")
               : formatDistance(added_at, new Date(), { addSuffix: true })}
             {/* {formatDistance(added_at, new Date(), { addSuffix: true })} */}
           </p>
@@ -340,7 +340,7 @@ export default function Home() {
 
   if (!router.query.code && likedTracks.length == 0) {
     return (
-      <div className="flex h-screen items-center justify-center animate-in fade-in zoom-in">
+      <div className="flex flex-col h-screen items-center justify-center animate-in fade-in zoom-in ">
         <Link
           className="rounded-full bg-sky-500 px-4 py-2 text-black"
           onClick={handelLoggedInClicked}
@@ -348,6 +348,14 @@ export default function Home() {
         >
           Login with Spotify
         </Link>
+        <div className="p-10" />
+        <div className="flex justify-end">
+          <p className="text-xs px-10 text-gray-200">
+            Note: Since this app is yet to be approved by Spotify, to access it,
+            your email address (linked to your Spotify account) will need to
+            added to the backend system.
+          </p>
+        </div>
       </div>
     );
   }
@@ -368,7 +376,7 @@ export default function Home() {
           {toFollow.length > 0 && `Follow ${toFollow.length} artist(s). `}
           {toUnfollow.length > 0 && `Un-follow ${toUnfollow.length} artist(s)`}
           <button
-            className="bg-blue-600 rounded-full px-2"
+            className="bg-green-700 rounded-full px-2"
             onClick={handleSave}
           >
             Confrim
