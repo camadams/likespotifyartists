@@ -1,18 +1,28 @@
-export interface TrackNameAndArtists {
+export interface LikedSong {
+    // if you change the key or value here, you need to update hello2.ts at the bottom, where the response is sent
     trackName: string
     artists: Artist[]
+    added_at: string
 }
 
 export interface ExternalUrls {
     spotify: string;
 }
 
+export interface Followers {
+    href: string | null;
+    total: number;
+}
+
 export interface Artist {
     external_urls: ExternalUrls;
+    followers: Followers;
+    genres: string[];
     href: string;
     id: string;
+    images?: Image[];
     name: string;
-    popularity: string;
+    popularity: number;
     type: string;
     uri: string;
     isFollowing?: boolean

@@ -2,16 +2,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
 import Link from "next/link";
-import { Artist, TrackNameAndArtists } from "~/utils/types";
+import { Artist, LikedSong } from "~/utils/types";
 import { LoadingSpinner } from "~/LoadingSpinner";
+import Image from "next/image";
+import { format, formatDistance, isBefore, subMonths } from "date-fns";
 
 type HelloResponse = {
-  trackNameAndArtists: TrackNameAndArtists[];
+  likedSongs: LikedSong[];
   accessToken: string;
 };
 
 export default function Home() {
-  const [likedTracks, setLikedSongs] = useState<TrackNameAndArtists[]>([]);
+  const [likedTracks, setLikedSongs] = useState<LikedSong[]>([]);
   const [accessToken, setAccessToken] = useState<string>();
   const [loadingLikedTracks, setLoadingLikedTracks] = useState<boolean>(false);
   const [following, setFollowingArtitstIds] = useState<string[]>([]);
@@ -39,14 +41,13 @@ export default function Home() {
             accessToken: accessToken,
           })
           .then((response) => {
-            var items = response.data as HelloResponse;
-            var ta = items.trackNameAndArtists.flatMap((aa) => aa.trackName);
-            setLikedSongs(() => items.trackNameAndArtists);
+            var responseData = response.data as HelloResponse;
+            setLikedSongs(() => responseData.likedSongs);
             setFollowingArtitstIds(() =>
               Array.from(
                 new Set(
-                  items.trackNameAndArtists.flatMap((x) =>
-                    [...x.artists]
+                  responseData.likedSongs.flatMap((song) =>
+                    [...song.artists]
                       .filter((artist) => artist.isFollowing)
                       .map((artist) => artist.id)
                   )
@@ -56,17 +57,17 @@ export default function Home() {
             setAllArtistsCount(() => {
               const uniqueArtists = Array.from(
                 new Set(
-                  items.trackNameAndArtists
-                    .flatMap((item) => [...item.artists])
+                  responseData.likedSongs
+                    .flatMap((song) => [...song.artists])
                     .map((artist) => artist.id)
                 )
               );
               return uniqueArtists.length;
             });
-            setAccessToken(() => items.accessToken);
+            setAccessToken(() => responseData.accessToken);
             router.push({
               pathname: router.pathname,
-              query: { code, accessToken: items.accessToken },
+              query: { code, accessToken: responseData.accessToken },
             });
             setLoadingLikedTracks(() => false);
           })
@@ -141,9 +142,9 @@ export default function Home() {
       .catch((err) => alert(err.message));
   };
 
-  const doGroupingByArtist = (tracks: TrackNameAndArtists[]) => {
+  const doGroupingByArtist = (songs: LikedSong[]) => {
     const map = new Map<string, string[]>();
-    tracks.forEach(({ trackName, artists }) => {
+    songs.forEach(({ trackName, artists }) => {
       artists.forEach((artist) => {
         const tracksOfArt = map.get(artist.id) || [];
         map.set(artist.id, [trackName, ...tracksOfArt]);
@@ -194,9 +195,9 @@ export default function Home() {
     return (
       <button
         onClick={() => handleFollow(artistId)}
-        className={`px-2 rounded-full text-sm font-semibold text-black ${
+        className={`px-2 rounded-full text-xs py-1 font-semibold text-black ${
           green
-            ? "bg-green-500 hover:bg-green-300"
+            ? "bg-blue-500 hover:bg-blue-300"
             : "bg-yellow-500 hover:bg-yellow-300"
         } `}
       >
@@ -205,53 +206,131 @@ export default function Home() {
     );
   };
 
-  const Card = ({
-    main,
-    sub,
+  const SongCard = ({
+    songName,
+    artists,
+    added_at,
   }: {
-    main: Artist | string;
-    sub: Artist[] | string[];
+    songName: string;
+    artists: Artist[];
+    added_at: string;
   }) => {
     return (
-      <div className="mb-3 ">
+      <div className="mb-3 hover:bg-gray-900">
         <div className="flex justify-between">
-          <a
-            target={typeof main !== "string" ? "_blank" : ""}
-            href={typeof main !== "string" ? main.external_urls.spotify : "#"}
-            className=" text-yellow-500 "
-          >
-            {typeof main !== "string" ? main.name : main}
-          </a>
-
-          {typeof main !== "string" && (
-            <FollowingNotFollowingButton
-              artistId={main.id}
-              green={
-                !toUnfollow.includes(main.id) &&
-                (following.includes(main.id) || toFollow.includes(main.id))
-              }
-            />
-          )}
+          <a className="font-semibold content-center  ">{songName}</a>
+          <p className="text-xs content-center shrink-0 text-gray-300">
+            {isBefore(added_at, subMonths(new Date(), 1))
+              ? format(added_at, "d MMM yyyy")
+              : formatDistance(added_at, new Date(), { addSuffix: true })}
+            {/* {formatDistance(added_at, new Date(), { addSuffix: true })} */}
+          </p>
         </div>
-        <div className="pl-4">
-          {sub.map((x, index) => (
-            <div className="text-xs flex justify-between " key={index}>
-              {typeof x !== "string" ? x.name : x}
-              {typeof x !== "string" && (
+        <div className="pl-6">
+          {artists.map((artist, index) => (
+            <div key={index} className="flex justify-between mb-1 ">
+              <div className="flex gap-3">
+                <div className="shrink-0">
+                  {!!artist.images && artist.images[0] && (
+                    <Image
+                      src={artist.images[0].url}
+                      width={30}
+                      height={30}
+                      // width={main.images[0].width}
+                      // height={main.images[0].height}
+                      alt="artist image"
+                    />
+                  )}
+                </div>
+                <div className="">
+                  <a
+                    target="_blank"
+                    href={artist.external_urls.spotify}
+                    className="content-center text-sm text-yellow-500"
+                  >
+                    {artist.name}
+                  </a>
+                </div>
+              </div>
+
+              <div className="shrink-0">
                 <FollowingNotFollowingButton
-                  artistId={x.id}
+                  artistId={artist.id}
                   green={
-                    !toUnfollow.includes(x.id) &&
-                    (following.includes(x.id) || toFollow.includes(x.id))
+                    !toUnfollow.includes(artist.id) &&
+                    (following.includes(artist.id) ||
+                      toFollow.includes(artist.id))
                   }
                 />
-              )}
+              </div>
             </div>
           ))}
         </div>
       </div>
     );
   };
+
+  const ArtistCard = ({
+    artist,
+    songNames,
+  }: {
+    artist: Artist;
+    songNames: string[];
+  }) => {
+    const maxVisableSongs = 3;
+    return (
+      <div className="flex justify-between mb-1 hover:bg-gray-900">
+        <div className="flex gap-3">
+          <div className="shrink-0">
+            {!!artist.images && artist.images[0] && (
+              <Image
+                src={artist.images[0].url}
+                width={40}
+                height={40}
+                // width={main.images[0].width}
+                // height={main.images[0].height}
+                alt="artist image"
+              />
+            )}
+          </div>
+          <div className="">
+            <a
+              target="_blank"
+              href={artist.external_urls.spotify}
+              className="font-semibold text-yellow-500 content-center"
+            >
+              {artist.name}
+            </a>
+            <p className="text-xs text-ellipsis">
+              {songNames.slice(0, maxVisableSongs).join(", ")}
+              {songNames.length > maxVisableSongs &&
+                ` + ${songNames.length - maxVisableSongs} more`}
+            </p>
+          </div>
+        </div>
+
+        <div className="shrink-0">
+          <FollowingNotFollowingButton
+            artistId={artist.id}
+            green={
+              !toUnfollow.includes(artist.id) &&
+              (following.includes(artist.id) || toFollow.includes(artist.id))
+            }
+          />
+        </div>
+      </div>
+    );
+  };
+
+  {
+    /* <div className="pl-4">
+          {songNames.map((song, index) => (
+            <div className="text-xs flex justify-between " key={index}>
+              {song}
+            </div>
+          ))}
+        </div> */
+  }
 
   if (!router.query.code && likedTracks.length == 0) {
     return (
@@ -283,7 +362,7 @@ export default function Home() {
           {toFollow.length > 0 && `Follow ${toFollow.length} artist(s). `}
           {toUnfollow.length > 0 && `Un-follow ${toUnfollow.length} artist(s)`}
           <button
-            className="bg-green-600 rounded-full px-2"
+            className="bg-blue-600 rounded-full px-2"
             onClick={handleSave}
           >
             Confrim
@@ -304,7 +383,7 @@ export default function Home() {
         {
           <div>
             {toFollow?.map((x, i) => (
-              <div className="bg-green-600" key={i}>
+              <div className="bg-blue-600" key={i}>
                 {x}
               </div>
             ))}
@@ -342,8 +421,8 @@ export default function Home() {
           </button>
 
           <button
-            className={`rounded-full px-2 border-blue-500 border-2 ${
-              groupById == 1 ? "bg-blue-500" : ""
+            className={`rounded-full px-2 border-pink-500 border-2 ${
+              groupById == 1 ? "bg-pink-500" : ""
             }`}
             onClick={() => setGroupById(() => 1)}
           >
@@ -370,7 +449,12 @@ export default function Home() {
           {groupById == 1 ? (
             <div>
               {likedTracks?.map((track, i) => (
-                <Card key={i} main={track.trackName} sub={track.artists} />
+                <SongCard
+                  key={i}
+                  songName={track.trackName}
+                  artists={track.artists}
+                  added_at={track.added_at}
+                />
               ))}
             </div>
           ) : (
@@ -379,7 +463,13 @@ export default function Home() {
                 ([artistId, trackNames], i) => {
                   var artist = getArtistNameFromId(artistId);
                   if (!artist) return;
-                  return <Card key={i} main={artist} sub={trackNames} />;
+                  return (
+                    <ArtistCard
+                      key={i}
+                      artist={artist}
+                      songNames={trackNames}
+                    />
+                  );
                 }
               )}
             </div>
